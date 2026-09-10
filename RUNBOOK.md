@@ -56,3 +56,83 @@ Legend: `[ ]` todo · `[x]` done · `[~]` done with a caveat (see notes)
 **Notes:**
 >   There were other steps, but they were setup stuff I skipped. Got this command to return the versions.
 
+---
+
+## Phase 1 — Project skeleton + PostgreSQL
+
+### 1.1 Folders
+- [x] `mkdir -p ~/workspace/fullstack-practice` then `mkdir backend frontend`
+
+**Notes:**
+>   check
+
+### 1.2 `docker-compose.yml` (Postgres only)
+- [x] created with `postgres:16`, db/user/pass = `guestbook`, port 5432, volume, healthcheck
+
+**Notes:**
+>   This was a copy and paste step last time.  I want to see how to do it for myself.
+>   Looked it up.  You have to read a bunch of documentation and write the file yourself.  Don't want to spend the time to do that right now.
+
+### 1.3 `.env`
+- [x] `.env.example` created (`APP_SUBMISSION_PASSCODE=let-me-in`)
+- [x] `cp .env.example .env`
+
+**Notes:**
+>   Set this up, but just the .env file
+
+### 1.4 `.gitignore`
+- [x] created
+
+**Notes:**
+>   Created and added .env to it
+
+### 1.5 Start the database
+- [x] `docker compose up -d`
+- [x] `docker compose ps` shows `db` healthy
+
+**Notes:**
+>   works
+
+### ✅ Verify Phase 1
+- [x] `docker compose exec db psql -U guestbook -d guestbook -c '\dt'` → "Did not find any relations."
+
+**Notes:**
+>   works
+
+---
+
+## Phase 2 — Spring Boot backend scaffold
+
+### 2.1 Generate
+- [x] `curl https://start.spring.io/starter.zip ...` (web, data-jpa, postgresql, validation, actuator)
+- [x] unzip into `backend/` and flatten the inner folder
+- [x] `ls backend` shows `pom.xml`, `src`, `mvnw`
+
+**Notes:**
+>   
+
+### 2.2 `application.yml`
+- [x] delete `application.properties`, create `application.yml` (port 8081, datasource localhost, ddl-auto update, `app.submission-passcode`)
+
+**Notes:**
+>   
+
+### 2.3 `application-docker.yml`
+- [x] created (datasource host = `db`)
+
+**Notes:**
+>   
+
+### 2.4 First run
+- [x] `cd backend && ./mvnw spring-boot:run` → `Started GuestbookApplication`
+
+**Notes:**
+>   
+
+### ✅ Verify Phase 2
+- [x] `curl -s localhost:8081/actuator/health` → `{"status":"UP"}`
+
+**Notes:**
+>   
+
+---
