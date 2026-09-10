@@ -109,30 +109,30 @@ Legend: `[ ]` todo · `[x]` done · `[~]` done with a caveat (see notes)
 - [x] `ls backend` shows `pom.xml`, `src`, `mvnw`
 
 **Notes:**
->   
+>   Didn't use the long curl command this time.  Went to the spring initializer and got the .zip myself and placed it in the backend directory.
 
 ### 2.2 `application.yml`
 - [x] delete `application.properties`, create `application.yml` (port 8081, datasource localhost, ddl-auto update, `app.submission-passcode`)
 
 **Notes:**
->   
+>   The last time, the db username and password were hardcoded into a lot of the files.  I set them up as .env variables.
 
 ### 2.3 `application-docker.yml`
 - [x] created (datasource host = `db`)
 
 **Notes:**
->   
+>   don't think i need this. we will see later.
 
 ### 2.4 First run
 - [x] `cd backend && ./mvnw spring-boot:run` → `Started GuestbookApplication`
 
 **Notes:**
->   
+>   I made 'application.yml' in the wrong spot and gave it the wrong name. should have been in src/main/resources. also made 'application-docker.yml', and it worked?  there was also a problem where the enviornment variables were not referenced correctly.  one file needed a '-' in front of the back up option and the other didn't.
 
 ### ✅ Verify Phase 2
 - [x] `curl -s localhost:8081/actuator/health` → `{"status":"UP"}`
 
 **Notes:**
->   
+>   got it working.
 
 ---
