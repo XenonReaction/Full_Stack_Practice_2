@@ -272,16 +272,16 @@ Create each file — contract in guide §3, full source under **▸ Reference im
 ## Phase 4 — Manual API check with curl
 
 With `docker compose up -d` + `./mvnw spring-boot:run`:
-- [ ] valid submission → `201`, body has `id` + `createdAt`, no `passcode`
-- [ ] wrong passcode → `403`
-- [ ] blank fields → `400`
-- [ ] `GET /api/messages` → `200`, newest first
+- [x] valid submission → `201`, body has `id` + `createdAt`, no `passcode`
+- [x] wrong passcode → `403`
+- [x] blank fields → `400`
+- [x] `GET /api/messages` → `200`, newest first
 
 ### ✅ Verify Phase 4
-- [ ] `select id, name, body from messages;` → one row; backend stopped
+- [x] `select id, name, body from messages;` → one row; backend stopped
 
 **Notes:**
->
+> Allows us to test the actual function of the backend outside of unit tests.  Works.
 
 ---
 
