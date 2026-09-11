@@ -348,21 +348,29 @@ suite its own throwaway Postgres via Testcontainers.
 </dependency>
 <dependency>
     <groupId>org.testcontainers</groupId>
-    <artifactId>junit-jupiter</artifactId>
+    <artifactId>testcontainers-junit-jupiter</artifactId>
     <scope>test</scope>
 </dependency>
 <dependency>
     <groupId>org.testcontainers</groupId>
-    <artifactId>postgresql</artifactId>
+    <artifactId>testcontainers-postgresql</artifactId>
     <scope>test</scope>
 </dependency>
 ```
 
-(No versions — the Spring Boot parent BOM manages them.)
+> **Artifact names.** Spring Boot 4.1 aligns with **Testcontainers 2.x** (its BOM
+> imports `testcontainers-bom:2.0.5`). Testcontainers 2.0 renamed every module to a
+> `testcontainers-*` prefix — `junit-jupiter` → `testcontainers-junit-jupiter`,
+> `postgresql` → `testcontainers-postgresql`. Use the old 1.x names and Maven
+> fails the POM with *"'dependencies.dependency.version' … is missing"*. No
+> `<version>` is needed once the names are right — the BOM supplies `2.0.5`. (This
+> is also why the container class moved, below.)
 
 **Create `src/test/java/com/example/guestbook/TestcontainersConfiguration.java`.**
-Contract: a `@TestConfiguration` exposing one `@Bean` `PostgreSQLContainer<?>`
-annotated `@ServiceConnection` so Boot wires the datasource to it automatically.
+Contract: a `@TestConfiguration` exposing one `@Bean` `PostgreSQLContainer`
+(from `org.testcontainers.postgresql` — the `org.testcontainers.containers` one is
+deprecated in 2.x) annotated `@ServiceConnection`, so Boot wires the datasource to
+it automatically.
 
 <details><summary>▸ Reference implementation</summary>
 
@@ -372,19 +380,26 @@ package com.example.guestbook;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.utility.DockerImageName;
+import org.testcontainers.postgresql.PostgreSQLContainer;   // Testcontainers 2.x package
 
 @TestConfiguration(proxyBeanMethods = false)
 class TestcontainersConfiguration {
 
     @Bean
     @ServiceConnection
-    PostgreSQLContainer<?> postgresContainer() {
-        return new PostgreSQLContainer<>(DockerImageName.parse("postgres:16"));
+    PostgreSQLContainer postgresContainer() {
+        return new PostgreSQLContainer("postgres:16");
     }
 }
 ```
+
+> In Testcontainers 2.x `PostgreSQLContainer` lives in
+> `org.testcontainers.postgresql` and is no longer self-generic — no `<>`. The old
+> `org.testcontainers.containers.PostgreSQLContainer<?>` from 1.x tutorials still
+> compiles but is **deprecated** (your IDE will flag it) — use the new package.
+> `@ServiceConnection` itself is unchanged; that's still the right mechanism. Its
+> Postgres wiring comes from `spring-boot-jdbc`, already on the
+> classpath via `spring-boot-starter-data-jpa`.
 </details>
 
 **Edit `GuestbookApplicationTests`** to import it:
@@ -1894,6 +1909,7 @@ Always start from an empty directory.
 | A property value literally contains `-guestbook` / `-let-me-in` | You used shell syntax `${VAR:-default}` in a Spring file. Spring uses `${VAR:default}` (single colon). |
 | Backend: `role "…" does not exist` or `password authentication failed` after editing `.env` | Postgres volume predates the change; it only seeds the user on first run. `docker compose down -v && docker compose up -d`. |
 | Backend: `APPLICATION FAILED TO START` — `required a bean of type '…AppProperties'` | `@ConfigurationPropertiesScan` missing from `GuestbookApplication` (3.1). |
+| POM: `'dependencies.dependency.version' for org.testcontainers:postgresql:jar is missing` | Testcontainers 1.x artifact name under a Boot 4.1 BOM (Testcontainers 2.x). Use `testcontainers-postgresql` / `testcontainers-junit-jupiter`. |
 | Tests: `Could not find a valid Docker environment` | Docker Desktop not running, or WSL integration disabled. |
 | `@MockBean` won't resolve | Removed in Boot 4 — use `@MockitoBean` (`org.springframework.test.context.bean.override.mockito`). |
 | `ng test` can't launch Chrome | Install Chrome/Chromium and `export CHROME_BIN=$(which chromium)`, or use `--browsers=ChromeHeadless`, or the Vitest runner. |
