@@ -383,11 +383,11 @@ import org.springframework.context.annotation.Bean;
 import org.testcontainers.postgresql.PostgreSQLContainer;   // Testcontainers 2.x package
 
 @TestConfiguration(proxyBeanMethods = false)
-class TestcontainersConfiguration {
+public class TestcontainersConfiguration {
 
     @Bean
     @ServiceConnection
-    PostgreSQLContainer postgresContainer() {
+    public PostgreSQLContainer postgresContainer() {
         return new PostgreSQLContainer("postgres:16");
     }
 }
@@ -400,6 +400,13 @@ class TestcontainersConfiguration {
 > `@ServiceConnection` itself is unchanged; that's still the right mechanism. Its
 > Postgres wiring comes from `spring-boot-jdbc`, already on the
 > classpath via `spring-boot-starter-data-jpa`.
+>
+> **Make the class and the bean method `public`.** It sits in
+> `com.example.guestbook`, but 3.14/3.15's tests live in the `message`
+> sub-package. A package-private class isn't visible outside its own package, so
+> `@Import(TestcontainersConfiguration.class)` from `message/…Test.java` won't
+> even compile ("is not public … cannot be accessed from outside package") until
+> this is `public`.
 </details>
 
 **Edit `GuestbookApplicationTests`** to import it:
@@ -929,6 +936,14 @@ class MessageServiceTest {
 Postgres container, not an in-memory DB. Save an older and a newer `Message`,
 assert `findAllByOrderByCreatedAtDesc()` returns newer-then-older.
 
+> **Boot 4 moved these packages.** The per-module starter split (2.1) reaches the
+> test-autoconfigure annotations too: `@DataJpaTest` is now
+> `org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest` and
+> `@AutoConfigureTestDatabase` is `org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase`
+> — not the old `org.springframework.boot.test.autoconfigure.*` locations older
+> tutorials use. Your IDE's auto-import will find the right one; if you type the
+> import by hand from memory, it won't resolve.
+
 <details><summary>▸ Reference implementation</summary>
 
 ```java
@@ -940,9 +955,9 @@ import com.example.guestbook.TestcontainersConfiguration;
 import java.time.OffsetDateTime;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase.Replace;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
+import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase.Replace;
 import org.springframework.context.annotation.Import;
 
 @DataJpaTest
@@ -968,16 +983,30 @@ class MessageRepositoryTest {
 
 ### 3.15 `message/MessageControllerTest.java` — `@WebMvcTest` slice
 
-**Contract.** `@WebMvcTest(MessageController.class)` (loads MVC + your
-`@RestControllerAdvice`, nothing else); `@Autowired MockMvc`;
-`@MockitoBean MessageService` (Boot 4 removed `@MockBean` — use `@MockitoBean`
-from `org.springframework.test.context.bean.override.mockito`). Cases:
+**Contract.** `@WebMvcTest(MessageController.class)` (loads MVC infrastructure,
+your `@RestControllerAdvice`, **and any `WebMvcConfigurer` — including
+`WebConfig`**); `@Autowired MockMvc`; `@MockitoBean MessageService` (Boot 4
+removed `@MockBean` — use `@MockitoBean` from
+`org.springframework.test.context.bean.override.mockito`). Cases:
 
 - `GET` → stub `findAll()`, expect `200`, `$[0].name`, and `$[0].passcode`
   **does not exist**.
 - `POST` blank name → expect `400` (validation fires before the service).
 - `POST` with `service.create` stubbed to throw `InvalidPasscodeException` →
   expect `403`.
+
+> **Package moved.** `@WebMvcTest` is now
+> `org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest`, not the old
+> `org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest` — same
+> per-module split as `@DataJpaTest` above.
+>
+> **`WebConfig` needs `AppProperties`, and the slice won't provide it.**
+> `@WebMvcTest` pulls in `WebConfig` because it implements `WebMvcConfigurer` —
+> but `@ConfigurationPropertiesScan` (3.1) doesn't run inside a `@WebMvcTest`
+> slice, so there's no `AppProperties` bean and the context fails with
+> `No qualifying bean of type '…AppProperties' available`. Fix: add
+> `@EnableConfigurationProperties(AppProperties.class)` to the test class to
+> register just that one bean.
 
 <details><summary>▸ Reference implementation</summary>
 
@@ -991,15 +1020,18 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.example.guestbook.config.AppProperties;
 import java.time.OffsetDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+@EnableConfigurationProperties(AppProperties.class)
 @WebMvcTest(MessageController.class)
 class MessageControllerTest {
 
@@ -1912,6 +1944,9 @@ Always start from an empty directory.
 | POM: `'dependencies.dependency.version' for org.testcontainers:postgresql:jar is missing` | Testcontainers 1.x artifact name under a Boot 4.1 BOM (Testcontainers 2.x). Use `testcontainers-postgresql` / `testcontainers-junit-jupiter`. |
 | Tests: `Could not find a valid Docker environment` | Docker Desktop not running, or WSL integration disabled. |
 | `@MockBean` won't resolve | Removed in Boot 4 — use `@MockitoBean` (`org.springframework.test.context.bean.override.mockito`). |
+| `@DataJpaTest` / `@AutoConfigureTestDatabase` / `@WebMvcTest` won't resolve, or "package does not exist" | Boot 4's per-module split moved these out of `org.springframework.boot.test.autoconfigure.*`. New homes: `org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest`, `org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase`, `org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest`. Let the IDE auto-import instead of typing from memory. |
+| `TestcontainersConfiguration` import fails: "is not public … cannot be accessed from outside package" | It's package-private in `com.example.guestbook`, referenced from a test in a sub-package (`message`). Make the class (and its `@Bean` method) `public`. |
+| `@WebMvcTest`: `No qualifying bean of type '…AppProperties' available` | `WebConfig` (a `WebMvcConfigurer`) is pulled into the slice, but `@ConfigurationPropertiesScan` doesn't run there. Add `@EnableConfigurationProperties(AppProperties.class)` to the test class. |
 | `ng test` can't launch Chrome | Install Chrome/Chromium and `export CHROME_BIN=$(which chromium)`, or use `--browsers=ChromeHeadless`, or the Vitest runner. |
 | `ng g` produced `guestbook.component.ts` / class `GuestbookComponent` | Older CLI. Fine — just match your imports to the real names. |
 | Angular calls 404 for `/api/...` | Proxy not active. `ng serve` (proxy wired in `angular.json`) or `ng serve --proxy-config proxy.conf.json`. |
