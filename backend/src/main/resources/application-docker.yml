@@ -1,0 +1,5 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://db:5432/guestbook
+    username: ${POSTGRES_USER:guestbook}
+    password: ${POSTGRES_PASSWORD:guestbook}
